@@ -1,5 +1,6 @@
 const multer = require('multer');
 const mammoth = require('mammoth');
+const path = require('path');
 
 // Use memory storage — no files saved to disk
 const upload = multer({
@@ -33,9 +34,12 @@ exports.extractResumeText = (req, res) => {
             let text = '';
 
             if (mimetype === 'application/pdf') {
-                // pdfjs-dist v5 — disable web worker for Node.js (no browser Worker API)
+                // pdfjs-dist v5 — must point workerSrc at the actual worker file for Node.js
                 const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-                pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+                const workerPath = path.resolve(
+                    __dirname, '..', 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs'
+                );
+                pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath.replace(/\\/g, '/')}`;
                 const loadingTask = pdfjsLib.getDocument({
                     data: new Uint8Array(buffer),
                     useWorkerFetch: false,
