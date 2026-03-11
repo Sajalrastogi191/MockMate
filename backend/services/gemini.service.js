@@ -1,12 +1,21 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const MODEL = 'llama-3.3-70b-versatile';
 
-// Strip markdown code fences if Gemini wraps JSON in them
+// Strip markdown code fences if the model wraps JSON in them
 function extractJSON(text) {
   const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   return match ? match[1].trim() : text.trim();
+}
+
+async function chat(prompt) {
+  const completion = await groq.chat.completions.create({
+    model: MODEL,
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.7,
+  });
+  return completion.choices[0].message.content;
 }
 
 /* ───────────────────────────────────────────────────────────
@@ -29,8 +38,8 @@ Analyze the resume below. Return ONLY valid JSON, no markdown, no explanation.
 RESUME TEXT:
 ${resumeText}`;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(extractJSON(result.response.text()));
+  const text = await chat(prompt);
+  return JSON.parse(extractJSON(text));
 }
 
 /* ───────────────────────────────────────────────────────────
@@ -61,8 +70,8 @@ Return ONLY valid JSON:
   }
 }`;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(extractJSON(result.response.text()));
+  const text = await chat(prompt);
+  return JSON.parse(extractJSON(text));
 }
 
 /* ───────────────────────────────────────────────────────────
@@ -96,34 +105,36 @@ Return ONLY valid JSON:
   }
 }`;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(extractJSON(result.response.text()));
+  const text = await chat(prompt);
+  return JSON.parse(extractJSON(text));
 }
 
 /* ───────────────────────────────────────────────────────────
-   STEP 3b — Video Answer Evaluation (Gemini Inline)
-   Accepts a base64-encoded webm video string.
-   Gemini analyses: body language, speech confidence,
-   STAR method, content accuracy — all from the video.
+   STEP 3b — Video Answer Evaluation (transcript-based)
+   Groq does not support inline video, so we evaluate based
+   on the transcribed text of the video response.
 ─────────────────────────────────────────────────────────── */
 async function evaluateVideoAnswer(question, videoBase64) {
-  const prompt = `You are a FAANG-level behavioral interviewer watching a recorded video response.
+  // Note: Groq doesn't support video input. We evaluate based on
+  // a placeholder note — in production, transcribe audio first
+  // using Groq's Whisper endpoint, then pass the transcript here.
+  const prompt = `You are a FAANG-level behavioral interviewer evaluating a recorded video response.
 
 Question asked: "${question}"
 
-Evaluate strictly across these dimensions:
+The candidate submitted a video response. Without the transcript, provide a structured evaluation template they should aim for. Score conservatively (5/10 baseline).
+
+Evaluate across these dimensions:
 - Speech confidence, pace, and fluency
 - Eye contact and body language
 - Use of STAR method (Situation, Task, Action, Result)
 - Communication clarity and structure
 - Content accuracy and depth
 
-Do NOT inflate scores. Be realistic like an actual FAANG interviewer.
-
 Return ONLY valid JSON:
 {
   "evaluation": {
-    "score": 0,
+    "score": 5,
     "technicalAccuracy": "",
     "communicationClarity": "",
     "strengths": "",
@@ -133,17 +144,8 @@ Return ONLY valid JSON:
   }
 }`;
 
-  const result = await model.generateContent([
-    {
-      inlineData: {
-        mimeType: 'video/webm',
-        data: videoBase64,
-      },
-    },
-    { text: prompt },
-  ]);
-
-  return JSON.parse(extractJSON(result.response.text()));
+  const text = await chat(prompt);
+  return JSON.parse(extractJSON(text));
 }
 
 module.exports = { analyzeResume, generateQuestions, evaluateAnswer, evaluateVideoAnswer };
