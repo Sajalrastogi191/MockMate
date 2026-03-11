@@ -33,9 +33,15 @@ exports.extractResumeText = (req, res) => {
             let text = '';
 
             if (mimetype === 'application/pdf') {
-                // pdfjs-dist works correctly on Node.js v25 (no ERR_PACKAGE_PATH_NOT_EXPORTED)
+                // pdfjs-dist v5 — disable web worker for Node.js (no browser Worker API)
                 const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-                const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+                pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+                const loadingTask = pdfjsLib.getDocument({
+                    data: new Uint8Array(buffer),
+                    useWorkerFetch: false,
+                    isEvalSupported: false,
+                    useSystemFonts: true,
+                });
                 const pdfDoc = await loadingTask.promise;
                 const pageTexts = [];
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
