@@ -14,7 +14,7 @@
 
 MockMate is an intelligent mock interview platform designed to prepare candidates for high-level technical interviews. By leveraging the power of Google's Gemini AI, MockMate analyzes your resume and generates highly personalized, context-aware interview questions (Coding, Technical, and Behavioral).
 
-### 🔗 [Live Demo on Vercel: Click Here](https://mockmate-your-link.vercel.app/)
+### 🔗 [Live Demo on Vercel: Click Here](mock-mate-inky-five.vercel.app)
 *(Note: Replace the link above with your actual Vercel deployment URL)*
 
 ---
