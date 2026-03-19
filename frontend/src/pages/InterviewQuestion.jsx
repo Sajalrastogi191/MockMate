@@ -138,7 +138,7 @@ export default function InterviewQuestion() {
                 {/* Editor panel */}
                 <div className="lg:flex-1 flex flex-col min-h-[400px] lg:min-h-0">
                     <div className="card flex-1 p-0 overflow-hidden">
-                        {question.type === 'coding' && <CodeEditor value={answer} onChange={setAnswer} />}
+                        {question.type === 'coding' && <CodeEditor value={answer} onChange={setAnswer} testCases={question.testCases || []} />}
                         {question.type === 'video' && <VideoRecorder value={answer} onChange={setAnswer} />}
                         {question.type === 'text' && <TextEditor value={answer} onChange={setAnswer} />}
                     </div>

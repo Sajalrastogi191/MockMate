@@ -1,6 +1,6 @@
 import api from './index';
 
-export const createSession = (resumeText) => api.post('/interview/sessions', { resumeText });
+export const createSession = (resumeText, difficulty = 'medium') => api.post('/interview/sessions', { resumeText, difficulty });
 
 // payload is either { questionIndex, answer } or { questionIndex, videoBase64 }
 export const evaluateAnswer = (sessionId, _qIdx, payload) =>

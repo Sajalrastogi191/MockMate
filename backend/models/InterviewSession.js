@@ -1,11 +1,18 @@
 const mongoose = require('mongoose');
 
+const testCaseSchema = new mongoose.Schema({
+    input: String,
+    output: String,
+    explanation: String,
+}, { _id: false });
+
 const questionSchema = new mongoose.Schema({
     id: String,
     question: String,
     type: { type: String, enum: ['coding', 'text', 'video'] },
     difficulty: { type: String, enum: ['easy', 'medium', 'hard'] },
     expectedFocus: String,
+    testCases: [testCaseSchema],
 }, { _id: false });
 
 const evaluationSchema = new mongoose.Schema({
@@ -32,6 +39,7 @@ const resumeAnalysisSchema = new mongoose.Schema({
 const interviewSessionSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     resumeText: { type: String, required: true },
+    difficulty: { type: String, enum: ['easy', 'medium', 'hard'], default: 'medium' },
     resumeAnalysis: resumeAnalysisSchema,
     questions: [questionSchema],
     evaluations: [evaluationSchema],

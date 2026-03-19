@@ -9,11 +9,11 @@ function extractJSON(text) {
   return match ? match[1].trim() : text.trim();
 }
 
-async function chat(prompt) {
+async function chat(prompt, temperature = 0.7) {
   const completion = await groq.chat.completions.create({
     model: MODEL,
     messages: [{ role: 'user', content: prompt }],
-    temperature: 0.7,
+    temperature,
   });
   return completion.choices[0].message.content;
 }
@@ -44,9 +44,21 @@ ${resumeText}`;
 
 /* ───────────────────────────────────────────────────────────
    STEP 2 — Interview Question Generation
+   - difficulty: 'easy' | 'medium' | 'hard'
+   - sessionSeed: random hex string to force fresh questions
 ─────────────────────────────────────────────────────────── */
-async function generateQuestions(resumeAnalysis) {
+async function generateQuestions(resumeAnalysis, difficulty = 'medium', sessionSeed = '') {
+  const difficultyGuide = {
+    easy: `Focus on fundamental/beginner concepts. DSA questions should be simple (arrays, strings, basic loops). Avoid system design or hard LeetCode problems.`,
+    medium: `Standard interview difficulty. DSA questions should be medium-complexity (trees, hashmaps, two-pointers). Mix of depth and breadth.`,
+    hard: `Advanced/senior level. DSA questions should be hard (dynamic programming, graphs, system design aspects). Expect deep technical follow-ups.`,
+  };
+
   const prompt = `You are an expert FAANG-level technical interviewer.
+Session seed: ${sessionSeed} — use this to generate a UNIQUE and DIFFERENT set of questions every time. Never repeat questions from previous sessions.
+Difficulty level: ${difficulty.toUpperCase()}
+Difficulty guidance: ${difficultyGuide[difficulty]}
+
 Based on this resume analysis:
 ${JSON.stringify(resumeAnalysis, null, 2)}
 
@@ -54,6 +66,9 @@ Generate exactly 5 interview questions in this mix:
 - 2 Coding (DSA) questions — type: "coding"
 - 2 Project deep-dive technical questions — type: "text"
 - 1 HR/Behavioral question — type: "video"
+
+For CODING questions, include 2–3 concrete test cases that the candidate should verify their solution against.
+For TEXT and VIDEO questions, leave testCases as an empty array [].
 
 Return ONLY valid JSON:
 {
@@ -63,14 +78,18 @@ Return ONLY valid JSON:
         "id": "q1",
         "question": "",
         "type": "coding | text | video",
-        "difficulty": "easy | medium | hard",
-        "expectedFocus": ""
+        "difficulty": "${difficulty}",
+        "expectedFocus": "",
+        "testCases": [
+          { "input": "", "output": "", "explanation": "" }
+        ]
       }
     ]
   }
 }`;
 
-  const text = await chat(prompt);
+  // Use temperature 1.0 for maximum uniqueness/randomness
+  const text = await chat(prompt, 1.0);
   return JSON.parse(extractJSON(text));
 }
 

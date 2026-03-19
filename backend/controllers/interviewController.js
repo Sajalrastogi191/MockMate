@@ -4,16 +4,20 @@ const gemini = require('../services/gemini.service');
 // POST /api/interview/sessions
 exports.createSession = async (req, res) => {
     try {
-        const { resumeText } = req.body;
+        const { resumeText, difficulty = 'medium' } = req.body;
         if (!resumeText?.trim())
             return res.status(400).json({ message: 'Resume text is required' });
 
+        // Random seed ensures Groq generates fresh questions every time
+        const sessionSeed = Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+
         const analysisResult = await gemini.analyzeResume(resumeText);
-        const questionsResult = await gemini.generateQuestions(analysisResult.resumeAnalysis);
+        const questionsResult = await gemini.generateQuestions(analysisResult.resumeAnalysis, difficulty, sessionSeed);
 
         const session = await InterviewSession.create({
             userId: req.user._id,
             resumeText,
+            difficulty,
             resumeAnalysis: analysisResult.resumeAnalysis,
             questions: questionsResult.interview.questions,
             status: 'in-progress',
@@ -21,6 +25,7 @@ exports.createSession = async (req, res) => {
 
         res.status(201).json({
             sessionId: session._id,
+            difficulty: session.difficulty,
             resumeAnalysis: session.resumeAnalysis,
             questions: session.questions,
         });

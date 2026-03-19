@@ -6,7 +6,7 @@ import Loader from '../components/Loader';
 import {
     FileText, Upload, ArrowRight, Lightbulb,
     CloudUpload, CheckCircle, X, File, Plus, Trash2,
-    User, Briefcase, GraduationCap, Code2, FolderGit2,
+    User, Briefcase, GraduationCap, Code2, FolderGit2, Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -86,6 +86,40 @@ function Field({ label, hint, children }) {
     );
 }
 
+/* ── Difficulty Mode Config ───────────────────────────────────── */
+const DIFFICULTY_MODES = [
+    {
+        key: 'easy',
+        label: 'Easy',
+        emoji: '🟢',
+        description: 'Fundamentals & basics',
+        detail: 'Simple DSA (arrays, strings), introductory questions. Great for juniors.',
+        color: 'border-green-500/50 bg-green-500/8 text-green-400',
+        selected: 'border-green-400 bg-green-500/20 ring-2 ring-green-500/30',
+        badge: 'bg-green-500/15 text-green-400',
+    },
+    {
+        key: 'medium',
+        label: 'Medium',
+        emoji: '🟡',
+        description: 'Standard interview level',
+        detail: 'Medium DSA (trees, hashmaps), balanced technical + behavioral.',
+        color: 'border-yellow-500/50 bg-yellow-500/8 text-yellow-400',
+        selected: 'border-yellow-400 bg-yellow-500/20 ring-2 ring-yellow-500/30',
+        badge: 'bg-yellow-500/15 text-yellow-400',
+    },
+    {
+        key: 'hard',
+        label: 'Hard',
+        emoji: '🔴',
+        description: 'Senior / FAANG level',
+        detail: 'Hard DSA (DP, graphs), system design thinking, deep technical dives.',
+        color: 'border-red-500/50 bg-red-500/8 text-red-400',
+        selected: 'border-red-400 bg-red-500/20 ring-2 ring-red-500/30',
+        badge: 'bg-red-500/15 text-red-400',
+    },
+];
+
 /* ── Main ────────────────────────────────────────────────────────── */
 export default function NewInterview() {
     const [tab, setTab] = useState('upload');
@@ -94,6 +128,7 @@ export default function NewInterview() {
     const [dragging, setDragging] = useState(false);
     const [extracting, setExtracting] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [difficulty, setDifficulty] = useState('medium');
     const fileInputRef = useRef();
     const navigate = useNavigate();
 
@@ -142,7 +177,7 @@ export default function NewInterview() {
         if (text.trim().length < 50) { toast.error('Please fill in more resume details.'); return; }
         setSubmitting(true);
         try {
-            const res = await createSession(text);
+            const res = await createSession(text, difficulty);
             toast.success('Resume analyzed! Questions generated.');
             navigate(`/interview/${res.data.sessionId}/analysis`, { state: res.data });
         } catch (err) {
@@ -172,6 +207,45 @@ export default function NewInterview() {
                     <div className="mb-8">
                         <h1 className="text-3xl font-bold mb-1">New <span className="gradient-text">Interview</span></h1>
                         <p className="text-gray-400">Upload your resume or fill in the form — AI generates 5 personalized questions.</p>
+                    </div>
+
+                    {/* ── Difficulty Mode Selector ──────────────────────────── */}
+                    <div className="card mb-2">
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/20 flex items-center justify-center">
+                                <Zap className="w-4 h-4 text-violet-400" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-white text-sm">Interview Mode</h3>
+                                <p className="text-xs text-gray-500">Select difficulty level for your questions</p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            {DIFFICULTY_MODES.map((mode) => (
+                                <button
+                                    key={mode.key}
+                                    type="button"
+                                    onClick={() => setDifficulty(mode.key)}
+                                    className={`relative flex flex-col items-start gap-1.5 p-4 rounded-xl border transition-all duration-200 text-left ${
+                                        difficulty === mode.key ? mode.selected : 'border-gray-700 bg-gray-900/60 hover:border-gray-600'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between w-full">
+                                        <span className="text-lg">{mode.emoji}</span>
+                                        {difficulty === mode.key && (
+                                            <CheckCircle className="w-4 h-4 text-current opacity-80" />
+                                        )}
+                                    </div>
+                                    <span className={`text-sm font-semibold ${
+                                        difficulty === mode.key ? 'text-white' : 'text-gray-300'
+                                    }`}>{mode.label}</span>
+                                    <span className="text-xs text-gray-500 leading-tight">{mode.description}</span>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium mt-0.5 ${mode.badge}`}>
+                                        {mode.detail}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Tabs */}
@@ -434,7 +508,7 @@ export default function NewInterview() {
 
                         {/* Submit */}
                         <button type="submit" disabled={!ready || submitting || extracting} className="btn-primary w-full py-4 text-base">
-                            {submitting ? 'Analyzing…' : 'Analyze Resume & Start Interview'}
+                            {submitting ? 'Analyzing…' : `Start ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Interview`}
                             <ArrowRight className="w-5 h-5" />
                         </button>
 
