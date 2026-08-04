@@ -68,10 +68,21 @@ export default function InterviewQuestion() {
 
         setSubmitting(true);
         try {
-            // For video questions: answer holds the base64 string from VideoRecorder
-            const payload = isVideo
-                ? { questionIndex: qIdx, videoBase64: answer }
-                : { questionIndex: qIdx, answer };
+            let payload;
+
+            if (isVideo) {
+                const formData = new FormData();
+                formData.append('questionIndex', qIdx);
+                if (answer.audioBlob) {
+                    formData.append('audio', answer.audioBlob, 'answer_audio.webm');
+                }
+                if (answer.visualMetrics) {
+                    formData.append('visualMetrics', JSON.stringify(answer.visualMetrics));
+                }
+                payload = formData;
+            } else {
+                payload = { questionIndex: qIdx, answer };
+            }
 
             const res = await evaluateAnswer(sessionId, qIdx, payload);
             navigate(`/interview/${sessionId}/result/${qIdx}`, {
@@ -85,7 +96,7 @@ export default function InterviewQuestion() {
     };
 
     if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading question...</div>;
-    if (submitting) return <Loader message={question?.type === 'video' ? 'Gemini is watching your video...' : 'AI is evaluating your answer...'} sub="This may take 10–20 seconds" />;
+    if (submitting) return <Loader message={question?.type === 'video' ? 'Groq Whisper is transcribing & analyzing audio...' : 'AI is evaluating your answer...'} sub="This may take 10–20 seconds" />;
     if (!session) return null;
 
     const question = session.questions[qIdx];

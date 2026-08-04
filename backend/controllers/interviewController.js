@@ -38,29 +38,42 @@ exports.createSession = async (req, res) => {
 // POST /api/interview/sessions/:id/evaluate
 exports.evaluateAnswer = async (req, res) => {
     try {
-        const { questionIndex, answer, videoBase64 } = req.body;
+        const { questionIndex, answer, visualMetrics } = req.body;
 
-        if (questionIndex === undefined)
+        if (questionIndex === undefined || questionIndex === null)
             return res.status(400).json({ message: 'questionIndex is required' });
 
+        const qIdx = parseInt(questionIndex, 10);
         const session = await InterviewSession.findOne({ _id: req.params.id, userId: req.user._id });
         if (!session) return res.status(404).json({ message: 'Session not found' });
 
-        const question = session.questions[questionIndex];
+        const question = session.questions[qIdx];
         if (!question) return res.status(400).json({ message: 'Question not found' });
 
         let evalResult;
+        let storedAnswerText = answer;
 
-        // ── Video question: use Gemini inline video evaluation ──────────
-        if (question.type === 'video' && videoBase64) {
-            // Guard: rough size check (~15 MB base64 ≈ 20 MB decoded)
-            const approxMB = (videoBase64.length * 0.75) / (1024 * 1024);
-            if (approxMB > 20) {
-                return res.status(400).json({
-                    message: `Video is too large (${approxMB.toFixed(1)} MB). Please keep it under 2 minutes.`,
-                });
+        // ── Video question: Groq Whisper Audio Transcription + Computer Vision Metrics ──────────
+        if (question.type === 'video') {
+            let parsedMetrics = {};
+            if (visualMetrics) {
+                try {
+                    parsedMetrics = typeof visualMetrics === 'string' ? JSON.parse(visualMetrics) : visualMetrics;
+                } catch {
+                    console.warn('Failed to parse visualMetrics JSON:', visualMetrics);
+                }
             }
-            evalResult = await gemini.evaluateVideoAnswer(question.question, videoBase64);
+
+            // Transcribe audio using Groq Whisper
+            const audioBuffer = req.file ? req.file.buffer : null;
+            const originalName = req.file ? req.file.originalname : 'recorded_audio.webm';
+            const mimeType = req.file ? req.file.mimetype : 'audio/webm';
+
+            const transcript = await gemini.transcribeAudio(audioBuffer, originalName, mimeType);
+
+            // Evaluate question + transcript + visual metrics using Groq Llama 3.3 70B
+            evalResult = await gemini.evaluateVideoAnswer(question.question, transcript, parsedMetrics);
+            storedAnswerText = `[Spoken Answer — Transcribed by Groq Whisper]\n"${transcript}"`;
         } else {
             // ── Text / coding question: standard text evaluation ──────────
             if (!answer?.trim())
@@ -69,12 +82,11 @@ exports.evaluateAnswer = async (req, res) => {
         }
 
         // Remove prior evaluation for this index (allow re-submission)
-        session.evaluations = session.evaluations.filter(e => e.questionIndex !== questionIndex);
+        session.evaluations = session.evaluations.filter(e => e.questionIndex !== qIdx);
         session.evaluations.push({
-            questionIndex,
+            questionIndex: qIdx,
             questionId: question.id,
-            // Store human-readable placeholder for video so MongoDB stays small
-            answer: question.type === 'video' ? '[Video Response — evaluated by Gemini Vision]' : answer,
+            answer: storedAnswerText,
             ...evalResult.evaluation,
         });
 

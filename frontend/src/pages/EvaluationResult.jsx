@@ -24,20 +24,37 @@ export default function EvaluationResult() {
     const { state } = useLocation();
     const navigate = useNavigate();
     const [data, setData] = useState(state);
-    const [loading, setLoading] = useState(!state);
+    const [loading, setLoading] = useState(!state?.evaluation);
 
     useEffect(() => {
-        if (!state) {
-            getSession(sessionId)
-                .then(res => {
-                    const s = res.data.session;
-                    const ev = s.evaluations.find(e => e.questionIndex === qIdx);
-                    setData({ evaluation: ev, question: s.questions[qIdx], questions: s.questions, qIdx });
-                })
-                .catch(() => { toast.error('Failed to load result'); navigate('/dashboard'); })
-                .finally(() => setLoading(false));
-        }
-    }, []);
+        getSession(sessionId)
+            .then(res => {
+                const s = res.data.session;
+                const ev = s.evaluations.find(e => e.questionIndex === qIdx) || state?.evaluation;
+                if (ev) {
+                    setData({
+                        evaluation: ev,
+                        question: s.questions[qIdx] || state?.question,
+                        questions: s.questions || state?.questions,
+                        qIdx,
+                    });
+                } else if (state?.evaluation) {
+                    setData(state);
+                } else {
+                    toast.error('Evaluation result not found');
+                    navigate(`/interview/${sessionId}`);
+                }
+            })
+            .catch(() => {
+                if (state?.evaluation) {
+                    setData(state);
+                } else {
+                    toast.error('Failed to load result');
+                    navigate('/dashboard');
+                }
+            })
+            .finally(() => setLoading(false));
+    }, [sessionId, qIdx]);
 
     if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading result...</div>;
     if (!data?.evaluation) return null;

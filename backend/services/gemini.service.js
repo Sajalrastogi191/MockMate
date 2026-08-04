@@ -111,16 +111,16 @@ ${answer}
 
 ${typeHint}
 
-Return ONLY valid JSON:
+Return ONLY valid JSON matching this structure. The score MUST be a number between 0 and 10 calculated strictly based on candidate answer quality:
 {
   "evaluation": {
-    "score": 0,
-    "technicalAccuracy": "",
-    "communicationClarity": "",
-    "strengths": "",
-    "weaknesses": "",
-    "improvements": "",
-    "idealAnswerSummary": ""
+    "score": 7.5,
+    "technicalAccuracy": "<detailed technical accuracy evaluation>",
+    "communicationClarity": "<detailed communication clarity evaluation>",
+    "strengths": "<key strengths>",
+    "weaknesses": "<specific weaknesses>",
+    "improvements": "<actionable improvements>",
+    "idealAnswerSummary": "<ideal solution summary>"
   }
 }`;
 
@@ -129,37 +129,73 @@ Return ONLY valid JSON:
 }
 
 /* ───────────────────────────────────────────────────────────
-   STEP 3b — Video Answer Evaluation (transcript-based)
-   Groq does not support inline video, so we evaluate based
-   on the transcribed text of the video response.
+   STEP 3b — Video Answer Evaluation (Groq Whisper + Vision Metrics)
 ─────────────────────────────────────────────────────────── */
-async function evaluateVideoAnswer(question, videoBase64) {
-  // Note: Groq doesn't support video input. We evaluate based on
-  // a placeholder note — in production, transcribe audio first
-  // using Groq's Whisper endpoint, then pass the transcript here.
-  const prompt = `You are a FAANG-level behavioral interviewer evaluating a recorded video response.
+async function transcribeAudio(audioBuffer, filename = 'audio.webm', mimetype = 'audio/webm') {
+  if (!audioBuffer || audioBuffer.length === 0) {
+    return '[No audio recording detected]';
+  }
+  try {
+    const { toFile } = require('groq-sdk');
+    const fileObj = await toFile(audioBuffer, filename, { type: mimetype });
+    const response = await groq.audio.transcriptions.create({
+      file: fileObj,
+      model: 'whisper-large-v3-turbo',
+      response_format: 'json',
+      temperature: 0.0,
+    });
+    return response?.text?.trim() || '[Silent or non-verbal recording]';
+  } catch (err) {
+    console.error('Groq Whisper Transcription error:', err);
+    return '[Audio transcription unavailable]';
+  }
+}
 
-Question asked: "${question}"
+async function evaluateVideoAnswer(question, transcript, visualMetrics = {}) {
+  const metrics = {
+    eyeContactPercentage: 85,
+    faceVisiblePercentage: 90,
+    headMovement: 'Normal',
+    smileFrequency: 2,
+    confidenceScore: 80,
+    speakingDuration: 60,
+    recordingDuration: 60,
+    ...visualMetrics,
+  };
 
-The candidate submitted a video response. Without the transcript, provide a structured evaluation template they should aim for. Score conservatively (5/10 baseline).
+  const prompt = `You are an expert FAANG-level behavioral interviewer evaluating a candidate's recorded video interview answer.
 
-Evaluate across these dimensions:
-- Speech confidence, pace, and fluency
-- Eye contact and body language
-- Use of STAR method (Situation, Task, Action, Result)
-- Communication clarity and structure
-- Content accuracy and depth
+QUESTION ASKED:
+"${question}"
+
+CANDIDATE SPOKEN TRANSCRIPT (Transcribed by Groq Whisper):
+"${transcript}"
+
+BROWSER COMPUTER VISION & AUDIO METRICS:
+${JSON.stringify(metrics, null, 2)}
+
+Evaluate the candidate across these dimensions:
+1. Technical Accuracy & Content Depth
+2. STAR Structure (Situation, Task, Action, Result)
+3. Communication & Clarity
+4. Confidence, Eye Contact (${metrics.eyeContactPercentage}%), and Posture Stability (${metrics.headMovement})
+5. Fluency, Completeness, and Professionalism
+
+Scoring Rules:
+- Calculate "score" as a number between 0 and 10 based on overall performance combining transcript response quality and visual metrics.
+- If transcript is empty or non-responsive, score low (0–3).
+- Provide detailed, constructive, high-caliber interview feedback. Replace all description placeholders with real evaluation text.
 
 Return ONLY valid JSON:
 {
   "evaluation": {
-    "score": 5,
-    "technicalAccuracy": "",
-    "communicationClarity": "",
-    "strengths": "",
-    "weaknesses": "",
-    "improvements": "",
-    "idealAnswerSummary": ""
+    "score": 7.5,
+    "technicalAccuracy": "<detailed evaluation of candidate answer content and STAR structure>",
+    "communicationClarity": "<detailed evaluation of speech clarity, eye contact (${metrics.eyeContactPercentage}%), and confidence score (${metrics.confidenceScore}/100)>",
+    "strengths": "<key strengths from spoken answer and non-verbal delivery>",
+    "weaknesses": "<specific weaknesses in answer structure or delivery>",
+    "improvements": "<actionable feedback to improve answer structure and presentation>",
+    "idealAnswerSummary": "<an ideal high-scoring STAR answer to this question>"
   }
 }`;
 
@@ -167,4 +203,5 @@ Return ONLY valid JSON:
   return JSON.parse(extractJSON(text));
 }
 
-module.exports = { analyzeResume, generateQuestions, evaluateAnswer, evaluateVideoAnswer };
+module.exports = { analyzeResume, generateQuestions, evaluateAnswer, evaluateVideoAnswer, transcribeAudio };
+
