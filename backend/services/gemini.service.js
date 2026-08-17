@@ -21,7 +21,11 @@ async function chat(prompt, temperature = 0.7) {
     ],
     temperature,
   });
-  return completion.choices[0].message.content;
+  let raw = completion.choices[0].message.content || '';
+  // Strip Qwen <think>…</think> blocks (including unclosed ones)
+  raw = raw.replace(/<think>[\s\S]*?<\/think>/g, '');
+  raw = raw.replace(/<think>[\s\S]*/g, '');           // unclosed <think>
+  return raw.trim();
 }
 
 /* ───────────────────────────────────────────────────────────
