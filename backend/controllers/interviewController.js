@@ -71,7 +71,7 @@ exports.evaluateAnswer = async (req, res) => {
 
             const transcript = await gemini.transcribeAudio(audioBuffer, originalName, mimeType);
 
-            // Evaluate question + transcript + visual metrics using Groq Llama 3.3 70B
+            // Evaluate question + transcript + visual metrics using Groq
             evalResult = await gemini.evaluateVideoAnswer(question.question, transcript, parsedMetrics);
             storedAnswerText = `[Spoken Answer — Transcribed by Groq Whisper]\n"${transcript}"`;
         } else {
