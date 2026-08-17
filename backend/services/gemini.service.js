@@ -3,16 +3,22 @@ const Groq = require('groq-sdk');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MODEL = 'qwen/qwen3.6-27b';
 
-// Strip markdown code fences if the model wraps JSON in them
+// Strip <think>…</think> reasoning blocks and markdown code fences
 function extractJSON(text) {
-  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  return match ? match[1].trim() : text.trim();
+  // Remove Qwen thinking tags
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  // Remove markdown code fences if present
+  const match = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+  return match ? match[1].trim() : cleaned.trim();
 }
 
 async function chat(prompt, temperature = 0.7) {
   const completion = await groq.chat.completions.create({
     model: MODEL,
-    messages: [{ role: 'user', content: prompt }],
+    messages: [
+      { role: 'system', content: 'You are a helpful assistant. Do NOT include any thinking, reasoning, or explanation. Return ONLY the requested output.' },
+      { role: 'user', content: prompt },
+    ],
     temperature,
   });
   return completion.choices[0].message.content;
