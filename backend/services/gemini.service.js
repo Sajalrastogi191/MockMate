@@ -16,15 +16,17 @@ async function chat(prompt, temperature = 0.7) {
   const completion = await groq.chat.completions.create({
     model: MODEL,
     messages: [
-      { role: 'system', content: 'You are a helpful assistant. Do NOT include any thinking, reasoning, or explanation. Return ONLY the requested output.' },
+      { role: 'system', content: 'You are a helpful assistant. Return ONLY valid JSON. No thinking, no explanation, no markdown.' },
       { role: 'user', content: prompt },
     ],
     temperature,
+    max_tokens: 4096,
+    response_format: { type: 'json_object' },
   });
   let raw = completion.choices[0].message.content || '';
   // Strip Qwen <think>…</think> blocks (including unclosed ones)
   raw = raw.replace(/<think>[\s\S]*?<\/think>/g, '');
-  raw = raw.replace(/<think>[\s\S]*/g, '');           // unclosed <think>
+  raw = raw.replace(/<think>[\s\S]*/g, '');
   return raw.trim();
 }
 
