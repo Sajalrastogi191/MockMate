@@ -74,15 +74,16 @@ Difficulty guidance: ${difficultyGuide[difficulty]}
 Based on this resume analysis:
 ${JSON.stringify(resumeAnalysis, null, 2)}
 
-Generate exactly 5 interview questions in this mix:
-- 2 Coding (DSA) questions — type: "coding"
-- 2 Project deep-dive technical questions — type: "text"
-- 1 HR/Behavioral question — type: "video"
+IMPORTANT: You MUST generate EXACTLY 5 interview questions. Not 3, not 4, not 6. EXACTLY 5.
+The 5 questions MUST follow this EXACT distribution:
+- Questions q1, q2: Coding (DSA) questions — type: "coding"
+- Questions q3, q4: Project deep-dive technical questions — type: "text"
+- Question q5: HR/Behavioral question — type: "video"
 
 For CODING questions, include 2–3 concrete test cases that the candidate should verify their solution against.
 For TEXT and VIDEO questions, leave testCases as an empty array [].
 
-Return ONLY valid JSON:
+Return ONLY valid JSON with EXACTLY 5 objects in the questions array:
 {
   "interview": {
     "questions": [
@@ -100,9 +101,29 @@ Return ONLY valid JSON:
   }
 }`;
 
-  // Use temperature 1.0 for maximum uniqueness/randomness
-  const text = await chat(prompt, 1.0);
-  return JSON.parse(extractJSON(text));
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const text = await chat(prompt, 0.8);
+    const parsed = JSON.parse(extractJSON(text));
+    const questions = parsed?.interview?.questions;
+
+    // Validate: must have exactly 5 questions
+    if (Array.isArray(questions) && questions.length === 5) {
+      // Ensure each question has the required fields and correct id
+      const expectedTypes = ['coding', 'coding', 'text', 'text', 'video'];
+      questions.forEach((q, i) => {
+        q.id = q.id || `q${i + 1}`;
+        q.type = q.type || expectedTypes[i];
+        q.difficulty = q.difficulty || difficulty;
+        q.testCases = q.testCases || [];
+      });
+      return parsed;
+    }
+
+    console.warn(`generateQuestions attempt ${attempt}: got ${questions?.length ?? 0} questions instead of 5, retrying...`);
+  }
+
+  throw new Error('Failed to generate exactly 5 interview questions after multiple attempts');
 }
 
 /* ───────────────────────────────────────────────────────────
