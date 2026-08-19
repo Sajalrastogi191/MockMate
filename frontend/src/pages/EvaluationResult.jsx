@@ -23,18 +23,20 @@ export default function EvaluationResult() {
     const qIdx = parseInt(qIndex, 10);
     const { state } = useLocation();
     const navigate = useNavigate();
-    const [data, setData] = useState(state);
+    const [data, setData] = useState(state || null);
     const [loading, setLoading] = useState(!state?.evaluation);
 
-    // Only fetch from API when navigation state is missing (e.g., direct URL access / page refresh).
-    // When navigating from InterviewQuestion, state already contains the fresh evaluation.
+    // Use navigation state directly when available (from InterviewQuestion submit).
+    // Only fetch from API as fallback (direct URL access / page refresh).
     useEffect(() => {
         if (state?.evaluation) {
+            // Already have the evaluation from navigation — no API call needed
             setData(state);
             setLoading(false);
             return;
         }
 
+        setLoading(true);
         getSession(sessionId)
             .then(res => {
                 const s = res.data.session;

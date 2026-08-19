@@ -85,12 +85,15 @@ export default function InterviewQuestion() {
             }
 
             const res = await evaluateAnswer(sessionId, qIdx, payload);
+
+            // Navigate BEFORE resetting submitting state to prevent the state update
+            // from interrupting the React Router transition (v7_startTransition).
+            setSubmitting(false);
             navigate(`/interview/${sessionId}/result/${qIdx}`, {
                 state: { evaluation: res.data.evaluation, question: session.questions[qIdx], questions: session.questions, qIdx },
             });
         } catch (err) {
             toast.error(err.response?.data?.message || 'Evaluation failed');
-        } finally {
             setSubmitting(false);
         }
     };
