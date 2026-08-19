@@ -58,7 +58,7 @@ export default function EvaluationResult() {
                 navigate('/dashboard');
             })
             .finally(() => setLoading(false));
-    }, [sessionId, qIdx]);
+    }, [sessionId, qIdx, state]);
 
     if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading result...</div>;
     if (!data?.evaluation) return null;

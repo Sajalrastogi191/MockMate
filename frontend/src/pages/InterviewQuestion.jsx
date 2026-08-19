@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { getSession, evaluateAnswer } from '../api/interview';
 import CodeEditor from '../components/editors/CodeEditor';
@@ -86,11 +87,14 @@ export default function InterviewQuestion() {
 
             const res = await evaluateAnswer(sessionId, qIdx, payload);
 
-            // Navigate BEFORE resetting submitting state to prevent the state update
-            // from interrupting the React Router transition (v7_startTransition).
+            // Use flushSync to force the navigation state update synchronously
+            // (v7_startTransition defers navigate() which can cause a blank screen).
             setSubmitting(false);
-            navigate(`/interview/${sessionId}/result/${qIdx}`, {
-                state: { evaluation: res.data.evaluation, question: session.questions[qIdx], questions: session.questions, qIdx },
+            flushSync(() => {
+                navigate(`/interview/${sessionId}/result/${qIdx}`, {
+                    state: { evaluation: res.data.evaluation, question: session.questions[qIdx], questions: session.questions, qIdx },
+                    replace: true,
+                });
             });
         } catch (err) {
             toast.error(err.response?.data?.message || 'Evaluation failed');
