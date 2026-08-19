@@ -26,32 +26,34 @@ export default function EvaluationResult() {
     const [data, setData] = useState(state);
     const [loading, setLoading] = useState(!state?.evaluation);
 
+    // Only fetch from API when navigation state is missing (e.g., direct URL access / page refresh).
+    // When navigating from InterviewQuestion, state already contains the fresh evaluation.
     useEffect(() => {
+        if (state?.evaluation) {
+            setData(state);
+            setLoading(false);
+            return;
+        }
+
         getSession(sessionId)
             .then(res => {
                 const s = res.data.session;
-                const ev = s.evaluations.find(e => e.questionIndex === qIdx) || state?.evaluation;
+                const ev = s.evaluations.find(e => e.questionIndex === qIdx);
                 if (ev) {
                     setData({
                         evaluation: ev,
-                        question: s.questions[qIdx] || state?.question,
-                        questions: s.questions || state?.questions,
+                        question: s.questions[qIdx],
+                        questions: s.questions,
                         qIdx,
                     });
-                } else if (state?.evaluation) {
-                    setData(state);
                 } else {
                     toast.error('Evaluation result not found');
                     navigate(`/interview/${sessionId}`);
                 }
             })
             .catch(() => {
-                if (state?.evaluation) {
-                    setData(state);
-                } else {
-                    toast.error('Failed to load result');
-                    navigate('/dashboard');
-                }
+                toast.error('Failed to load result');
+                navigate('/dashboard');
             })
             .finally(() => setLoading(false));
     }, [sessionId, qIdx]);
